@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>야퇴존 AI 검색 노출 대시보드</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --fg:#16181d; --muted:#6b7280; --line:#e5e7eb; --ok:#059669; --bad:#dc2626; --warn:#d97706; --acc:#0f766e;
+          --chatgpt:#10a37f; --gemini:#4f7cff; --claude:#d97757; --radius:12px; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.55 -apple-system, "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding:28px 20px 60px; }
+  header { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:22px; }
+  h1 { font-size:22px; margin:0; letter-spacing:-0.02em; }
+  .sub { color:var(--muted); font-size:13px; }
+  select { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  h2 { font-size:16px; margin:34px 0 12px; letter-spacing:-0.01em; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; }
+  .eng { display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; margin-bottom:10px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .kgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  .k .l { color:var(--muted); font-size:12px; }
+  .k .v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+  .k .v small { font-size:12px; color:var(--muted); font-weight:500; }
+  .d { font-size:12px; font-weight:600; margin-left:4px; }
+  .up { color:var(--ok); } .down { color:var(--bad); } .same { color:var(--muted); font-weight:500; }
+  .two { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; }
+  .chart svg { width:100%; height:220px; display:block; }
+  .legend { display:flex; gap:14px; font-size:12px; color:var(--muted); margin-top:6px; flex-wrap:wrap; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; font-size:13px; }
+  th { color:var(--muted); font-weight:600; font-size:12px; background:#fafbfc; position:sticky; top:0; }
+  .cat { font-size:11px; color:var(--muted); }
+  .chip { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid transparent; white-space:nowrap; }
+  .c-ok { background:#ecfdf5; color:var(--ok); border-color:#a7f3d0; }
+  .c-part { background:#fffbeb; color:var(--warn); border-color:#fde68a; }
+  .c-bad { background:#fef2f2; color:var(--bad); border-color:#fecaca; }
+  .c-unk { background:#f3f4f6; color:#4b5563; }
+  .c-none { background:transparent; color:#9ca3af; border-color:var(--line); font-weight:500; }
+  .lnk { font-size:11px; }
+  .chg { font-size:11px; margin-left:4px; }
+  .changes li { margin:6px 0; }
+  .changes { padding-left:18px; margin:0; }
+  .bar { display:grid; grid-template-columns:150px 1fr 34px; align-items:center; gap:8px; margin:6px 0; font-size:13px; }
+  .bar .t { height:10px; border-radius:5px; background:#e5e7eb; overflow:hidden; }
+  .bar .t i { display:block; height:100%; background:#94a3b8; }
+  .bar.own .t i { background:var(--acc); } .bar.own { font-weight:700; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+  #panel { position:fixed; top:0; right:0; width:min(620px,100%); height:100%; background:#fff; border-left:1px solid var(--line); box-shadow:-8px 0 30px rgba(0,0,0,.08); transform:translateX(105%); transition:transform .25s ease; overflow:auto; z-index:10; }
+  #panel.open { transform:none; }
+  #panel .in { padding:20px 22px 40px; }
+  #panel h3 { margin:4px 0 6px; font-size:16px; }
+  #panel .x { float:right; border:0; background:#f3f4f6; border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit; }
+  .ans { white-space:pre-wrap; background:#fafbfc; border:1px solid var(--line); border-radius:8px; padding:12px; font-size:13px; max-height:420px; overflow:auto; }
+  .meta { display:grid; grid-template-columns:110px 1fr; gap:6px 10px; font-size:13px; margin:12px 0; }
+  .meta b { color:var(--muted); font-weight:600; }
+  .src a { color:var(--acc); word-break:break-all; }
+  .note { color:var(--muted); font-size:12px; margin-top:8px; }
+  .filters { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .filters button { font:inherit; font-size:12px; padding:5px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  .filters button.on { background:var(--fg); color:#fff; border-color:var(--fg); }
+  .scroll { overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius); background:#fff; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>야퇴존 · 팍스오디오 AI 검색 노출 대시보드</h1>
+      <div class="sub">ChatGPT · Gemini · Claude에 같은 질문을 매주 월요일 09:00에 다시 묻고, 언급 여부·순위·설명 정확도·인용 링크를 기록합니다.</div>
+    </div>
+    <div class="sub">측정 주차 <select id="week"></select> <span id="vs"></span></div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="two">
+    <div>
+      <h2>추이 · 제대로 소개된 질문 수 (20개 중)</h2>
+      <div class="card chart"><svg id="trend"></svg><div class="legend" id="legend"></div></div>
+    </div>
+    <div>
+      <h2>지난주 대비 달라진 점</h2>
+      <div class="card"><ul class="changes" id="changes"></ul></div>
+    </div>
+  </div>
+
+  <h2>질문별 결과 <span class="sub">칸을 누르면 AI 답변 원문, 출처 링크, 판정 근거를 볼 수 있어요</span></h2>
+  <div class="filters" id="filters"></div>
+  <div class="scroll"><table id="matrix"></table></div>
+  <div class="note">표시: <span class="chip c-ok">정확 · n위</span> 제대로 소개(브랜드 중 n번째) &nbsp; <span class="chip c-part">부분</span> 일부 틀림 &nbsp; <span class="chip c-bad">오류</span> 잘못 소개 &nbsp; <span class="chip c-unk">모름</span> 찾지 못함 &nbsp; <span class="chip c-none">미언급</span> &nbsp; 🔗 자사 사이트(wildlife-zone.com, paxaudio.com)나 자사 보도기사(한국일보) 인용 &nbsp; ▲▼ 지난주 대비</div>
+
+  <div class="two">
+    <div>
+      <h2>함께 언급된 브랜드 (이번 주 답변 수)</h2>
+      <div class="card" id="brands"></div>
+    </div>
+    <div>
+      <h2>AI가 인용한 출처 (이번 주)</h2>
+      <div class="card" id="sources"></div>
+    </div>
+  </div>
+</div>
+
+<div id="panel"><div class="in" id="pin"></div></div>
+
+<script>
+const ENG = { chatgpt:{name:'ChatGPT', c:'var(--chatgpt)'}, gemini:{name:'Gemini', c:'var(--gemini)'}, claude:{name:'Claude', c:'var(--claude)'} };
+let WEEKS = [], DATA = {}, cur = null, prev = null, filter = '전체';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const key = r => r.qid + '|' + r.engine;
+const shown = r => r && (r.accuracy === 'correct' || r.accuracy === 'partial');
+function status(r) {
+  if (!r) return { cls:'c-none', t:'—', score:0 };
+  if (r.error) return { cls:'c-none', t:'오류(수집)', score:0 };
+  if (r.accuracy === 'correct') return { cls:'c-ok', t:'정확' + (r.rank ? ' · ' + r.rank + '위' : ''), score:3 };
+  if (r.accuracy === 'partial') return { cls:'c-part', t:'부분' + (r.rank ? ' · ' + r.rank + '위' : ''), score:2 };
+  if (r.accuracy === 'wrong') return { cls:'c-bad', t:'오류', score:1 };
+  if (r.accuracy === 'unknown') return { cls:'c-unk', t:'모름', score:0 };
+  return { cls:'c-none', t:'미언급', score:0 };
+}
+function stats(d, eng) {
+  const rs = d.results.filter(r => r.engine === eng && !r.error);
+  const sh = rs.filter(shown);
+  const ranks = sh.filter(r => r.rank).map(r => r.rank);
+  return { n: d.questions.length, shown: sh.length, wrong: rs.filter(r => r.accuracy === 'wrong').length,
+           cited: rs.filter(r => r.cited_own).length, unknown: rs.filter(r => r.accuracy === 'unknown').length,
+           avgRank: ranks.length ? ranks.reduce((a,b)=>a+b,0)/ranks.length : null,
+           top1: sh.filter(r => r.rank === 1).length };
+}
+function delta(a, b, lowerBetter) {
+  if (b == null || a == null) return '';
+  const diff = +(a - b).toFixed(2);
+  if (diff === 0) return '<span class="d same">±0</span>';
+  const good = lowerBetter ? diff < 0 : diff > 0;
+  return `<span class="d ${good?'up':'down'}">${diff>0?'▲':'▼'}${Math.abs(diff)}</span>`;
+}
+function renderKpis() {
+  document.getElementById('kpis').innerHTML = Object.keys(ENG).map(e => {
+    const s = stats(cur, e), p = prev ? stats(prev, e) : null;
+    return `<div class="card"><div class="eng"><span class="dot" style="background:${ENG[e].c}"></span>${ENG[e].name}</div>
+      <div class="kgrid">
+        <div class="k"><div class="l">제대로 소개</div><div class="v">${s.shown}<small>/${s.n}</small>${delta(s.shown, p?.shown)}</div></div>
+        <div class="k"><div class="l">평균 순위 (1위 ${s.top1}회)</div><div class="v">${s.avgRank ? s.avgRank.toFixed(1)+'<small>위</small>' : '<small>—</small>'}${delta(s.avgRank, p?.avgRank, true)}</div></div>
+        <div class="k"><div class="l">자사·보도 출처 인용</div><div class="v">${s.cited}<small>회</small>${delta(s.cited, p?.cited)}</div></div>
+        <div class="k"><div class="l">잘못 소개 / 모름</div><div class="v">${s.wrong}<small> / ${s.unknown}</small>${delta(s.wrong, p?.wrong, true)}</div></div>
+      </div></div>`;
+  }).join('');
+}
+function renderTrend() {
+  const svg = document.getElementById('trend'); const W = svg.clientWidth || 520, H = 220, pl = 34, pr = 16, pt = 14, pb = 28;
+  const ws = WEEKS.slice().sort(); const max = 20;
+  const x = i => ws.length === 1 ? (pl + (W-pl-pr)/2) : pl + i*(W-pl-pr)/(ws.length-1);
+  const y = v => pt + (H-pt-pb)*(1 - v/max);
+  let g = '';
+  for (const t of [0,5,10,15,20]) g += `<line x1="${pl}" x2="${W-pr}" y1="${y(t)}" y2="${y(t)}" stroke="#eef0f3"/><text x="${pl-8}" y="${y(t)+4}" font-size="11" fill="#9ca3af" text-anchor="end">${t}</text>`;
+  ws.forEach((w,i) => { g += `<text x="${x(i)}" y="${H-8}" font-size="11" fill="#9ca3af" text-anchor="middle">${w.slice(5).replace('-','/')}</text>`; });
+  Object.keys(ENG).forEach((e, ei) => {
+    const off = (ei - 1) * 7; // 같은 값일 때 점이 겹치지 않게 살짝 밀기
+    const pts = ws.map((w,i) => [x(i) + off, y(stats(DATA[w], e).shown), stats(DATA[w], e).shown]);
+    if (pts.length > 1) g += `<polyline fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--'+e)}" stroke-width="2.5" points="${pts.map(p=>p[0]+','+p[1]).join(' ')}"/>`;
+    pts.forEach(p => g += `<circle cx="${p[0]}" cy="${p[1]}" r="4.5" fill="${getComputedStyle(document.documentElement).getPropertyValue('--'+e)}"><title>${ENG[e].name} ${p[2]}개</title></circle>`);
+    const last = pts[pts.length - 1];
+    if (last) g += `<text x="${last[0] + 8}" y="${last[1] - 8 - ei * 12}" font-size="11" font-weight="600" fill="${getComputedStyle(document.documentElement).getPropertyValue('--'+e)}">${last[2]}</text>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = g;
+  document.getElementById('legend').innerHTML = Object.keys(ENG).map(e => `<span><span class="dot" style="background:${ENG[e].c}"></span> ${ENG[e].name}</span>`).join('') + (ws.length === 1 ? '<span>· 첫 측정이라 다음 주부터 선이 그려집니다</span>' : '');
+}
+function renderChanges() {
+  const ul = document.getElementById('changes');
+  if (!prev) { ul.innerHTML = '<li class="muted">첫 측정(기준선)입니다. 다음 주 월요일 측정부터 변화가 표시됩니다.</li>' + (cur.notes||[]).map(n=>`<li>${esc(n)}</li>`).join(''); return; }
+  const pm = Object.fromEntries(prev.results.map(r => [key(r), r]));
+  const qt = Object.fromEntries(cur.questions.map(q => [q.id, q.q]));
+  const items = [];
+  for (const r of cur.results) {
+    const p = pm[key(r)]; const a = status(r), b = status(p);
+    const who = `<b>${ENG[r.engine].name}</b> · ${esc(qt[r.qid])}`;
+    if (shown(r) && !shown(p)) items.push([3, `<span class="up">새로 소개됨</span> ${who} (${a.t})`]);
+    else if (!shown(r) && shown(p)) items.push([3, `<span class="down">소개 사라짐</span> ${who} (지난주 ${b.t} → ${a.t})`]);
+    else if (shown(r) && shown(p) && r.rank !== p.rank) items.push([2, `${r.rank < p.rank ? '<span class="up">순위 상승</span>' : '<span class="down">순위 하락</span>'} ${who} (${p.rank}위 → ${r.rank}위)`]);
+    if (r.accuracy === 'wrong' && p?.accuracy !== 'wrong') items.push([2, `<span class="down">잘못된 설명 발생</span> ${who}`]);
+    if (r.accuracy !== 'wrong' && p?.accuracy === 'wrong') items.push([2, `<span class="up">오류 해소</span> ${who}`]);
+    if (r.cited_own && !p?.cited_own) items.push([1, `<span class="up">자사 링크 인용 시작</span> ${who}`]);
+    if (!r.cited_own && p?.cited_own) items.push([1, `<span class="down">자사 링크 인용 중단</span> ${who}`]);
+  }
+  items.sort((a,b) => b[0]-a[0]);
+  ul.innerHTML = (cur.notes||[]).map(n=>`<li>${esc(n)}</li>`).join('') + (items.length ? items.map(i => `<li>${i[1]}</li>`).join('') : '<li class="muted">지난주와 같은 결과입니다.</li>');
+}
+function renderMatrix() {
+  const cats = ['전체', ...new Set(cur.questions.map(q => q.cat))];
+  document.getElementById('filters').innerHTML = cats.map(c => `<button class="${c===filter?'on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  document.querySelectorAll('#filters button').forEach(b => b.onclick = () => { filter = b.dataset.c; renderMatrix(); });
+  const m = Object.fromEntries(cur.results.map(r => [key(r), r]));
+  const pm = prev ? Object.fromEntries(prev.results.map(r => [key(r), r])) : {};
+  let h = `<tr><th style="width:44%">질문</th>${Object.keys(ENG).map(e => `<th><span class="dot" style="background:${ENG[e].c}"></span> ${ENG[e].name}</th>`).join('')}</tr>`;
+  for (const q of cur.questions.filter(q => filter === '전체' || q.cat === filter)) {
+    h += `<tr><td><div class="cat">${esc(q.id)} · ${esc(q.cat)}</div>${esc(q.q)}</td>`;
+    for (const e of Object.keys(ENG)) {
+      const r = m[q.id + '|' + e], p = pm[q.id + '|' + e]; const s = status(r), ps = status(p);
+      let chg = '';
+      if (prev) { if (s.score > ps.score) chg = '<span class="chg up">▲</span>'; else if (s.score < ps.score) chg = '<span class="chg down">▼</span>'; else if (shown(r) && shown(p) && r.rank !== p.rank) chg = `<span class="chg ${r.rank<p.rank?'up':'down'}">${r.rank<p.rank?'▲':'▼'}</span>`; }
+      h += `<td><span class="chip ${s.cls}" data-k="${q.id}|${e}">${s.t}${r?.cited_own ? ' <span class="lnk">🔗</span>' : ''}</span>${chg}</td>`;
+    }
+    h += '</tr>';
+  }
+  const t = document.getElementById('matrix'); t.innerHTML = h;
+  t.querySelectorAll('.chip').forEach(c => c.onclick = () => openPanel(c.dataset.k));
+}
+function domainOf(s) { try { return new URL(s.url).hostname.replace(/^www\./,''); } catch { return (s.label||'').replace(/^www\./,''); } }
+function renderSide() {
+  const cnt = {};
+  for (const r of cur.results) for (const b of new Set(r.brands_order || [])) cnt[b] = (cnt[b]||0) + 1;
+  const arr = Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,12); const mx = Math.max(1, ...arr.map(a=>a[1]));
+  document.getElementById('brands').innerHTML = arr.length ? arr.map(([b,n]) => `<div class="bar ${/야퇴존/.test(b)?'own':''}"><span>${esc(b)}</span><span class="t"><i style="width:${n/mx*100}%"></i></span><span class="num">${n}</span></div>`).join('') + '<div class="note">야퇴존 수치는 질문에 이름이 들어간 경우(브랜드·비교 질문)도 포함합니다.</div>' : '<div class="muted">없음</div>';
+  const sc = {};
+  for (const r of cur.results) for (const d of new Set((r.sources||[]).map(domainOf).filter(Boolean))) sc[d] = (sc[d]||0) + 1;
+  const sa = Object.entries(sc).sort((a,b)=>b[1]-a[1]).slice(0,14); const sm = Math.max(1, ...sa.map(a=>a[1]));
+  const own = /wildlife-zone|paxaudio|goodmdb|pax-audio|hankookilbo|smartstore/;
+  document.getElementById('sources').innerHTML = sa.length ? sa.map(([d,n]) => `<div class="bar ${own.test(d)?'own':''}"><span>${esc(d)}</span><span class="t"><i style="width:${n/sm*100}%"></i></span><span class="num">${n}</span></div>`).join('') : '<div class="muted">없음</div>';
+}
+function openPanel(k) {
+  const [qid, e] = k.split('|'); const q = cur.questions.find(x => x.id === qid);
+  const r = cur.results.find(x => key(x) === k), p = prev?.results.find(x => key(x) === k);
+  const s = status(r), ps = status(p);
+  document.getElementById('pin').innerHTML = `<button class="x" onclick="document.getElementById('panel').classList.remove('open')">닫기</button>
+    <div class="cat">${esc(qid)} · ${esc(q.cat)} · <span class="dot" style="background:${ENG[e].c}"></span> ${ENG[e].name}</div>
+    <h3>${esc(q.q)}</h3>
+    <div class="meta">
+      <b>판정</b><span><span class="chip ${s.cls}">${s.t}</span> ${prev ? `<span class="muted">지난주: ${ps.t}</span>` : ''}</span>
+      <b>판정 근거</b><span>${esc(r?.accuracy_note || (r?.mentioned ? '' : '답변에 야퇴존·팍스오디오가 나오지 않음'))}</span>
+      <b>브랜드 순서</b><span>${(r?.brands_order||[]).map((b,i)=>`${i+1}. ${esc(b)}`).join(' &nbsp; ') || '—'}</span>
+      <b>자사 링크</b><span>${r?.cited_own ? '인용함 🔗' : '인용 안 함'}</span>
+      <b>측정 시각</b><span>${r?.asked_at ? new Date(r.asked_at).toLocaleString('ko-KR') : '—'}</span>
+    </div>
+    <div class="cat" style="margin:10px 0 4px">AI 답변 원문</div>
+    <div class="ans">${esc(r?.text || r?.error || '기록 없음')}</div>
+    <div class="cat" style="margin:14px 0 4px">인용 출처</div>
+    <div class="src">${(r?.sources||[]).length ? (r.sources).map(x => x.url ? `<div><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.label || x.url)}</a> <span class="muted">${esc(domainOf(x))}</span></div>` : `<div>${esc(x.label)}</div>`).join('') : '<span class="muted">없음</span>'}</div>
+    ${p ? `<div class="cat" style="margin:16px 0 4px">지난주 답변</div><div class="ans">${esc(p.text || p.error || '')}</div>` : ''}`;
+  document.getElementById('panel').classList.add('open');
+}
+function render() {
+  const i = WEEKS.indexOf(document.getElementById('week').value);
+  cur = DATA[WEEKS[i]]; prev = i + 1 < WEEKS.length ? DATA[WEEKS[i+1]] : null;
+  document.getElementById('vs').textContent = prev ? `· 비교: ${WEEKS[i+1]}` : '· 첫 측정';
+  renderKpis(); renderTrend(); renderChanges(); renderMatrix(); renderSide();
+}
+(async () => {
+  const idx = await (await fetch('data/index.json?t=' + Date.now())).json();
+  WEEKS = idx.weeks.slice().sort().reverse();
+  for (const w of WEEKS) DATA[w] = await (await fetch(`data/${w}.json?t=` + Date.now())).json();
+  document.getElementById('week').innerHTML = WEEKS.map(w => `<option>${w}</option>`).join('');
+  document.getElementById('week').onchange = render;
+  render();
+  addEventListener('resize', renderTrend);
+  addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('panel').classList.remove('open'); });
+})();
+</script>
+</body>
+</html>
